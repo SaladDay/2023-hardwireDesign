@@ -120,8 +120,8 @@ module hazard(
 
 
 	//------------------stall decode start------------------//
-	assign stallD = lwstallD | branchstallD | instrStall | dataStall | div_stallE;
-	assign stallF = (~is_exceptM & (stallD)); 
+	assign stallD = lwstallD | branchstallD | longest_stall;
+	assign stallF = (~is_exceptM & stallD); 
 	assign stallE = longest_stall; //执行除法时EX阶段暂停
 	assign stallM = longest_stall;
 	assign stallW = longest_stall & ~is_exceptM;

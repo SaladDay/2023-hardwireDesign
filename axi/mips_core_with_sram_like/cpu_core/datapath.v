@@ -127,6 +127,7 @@ module datapath(
     flopenrc #(32) rinstrE(clk,rst,~stallE,flushE,instrD,instrE);
     flopenrc #(32) rinstrM(clk,rst,~stallM,flushM,instrE,instrM);
     flopenrc #(32) rinstrW(clk,rst,~stallW,flushW,instrM,instrW);
+
     wire regwrite_for_debugW = stallW ? 0 : regwriteW; //todo
     flopenrc #(32) rpcW(clk,rst,~stallW,flushW,pcM,pcW);
     assign debug_wb_pc          = pcW;
@@ -319,6 +320,8 @@ module datapath(
 		.except_pc(except_pcM)   
 	);
 	assign bad_addrM = is_AdEL_pcM ? pcM : aluoutM;
+	wire [31:0] current_inst_addr;
+	flopr #(32) except_inst_addr(clk,rst,pcE,current_inst_addr); //写入cp0_epc, 由 pcE 传递来，无flush
 	cp0_reg cp0_reg(
 		//input
 		.clk(clk),                          
@@ -329,7 +332,7 @@ module datapath(
 		.data_i(aluoutM),
 		.int_i(ext_int),
 		.excepttype_i(except_typeM),
-		.current_inst_addr_i(pcM),
+		.current_inst_addr_i(current_inst_addr),
 		.is_in_delayslot_i(is_in_delayslotM),
 		.bad_addr_i(bad_addrM),
 		//output

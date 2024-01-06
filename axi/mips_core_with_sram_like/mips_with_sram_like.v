@@ -1,10 +1,10 @@
 /*
-mips_core_with_sram_like
+mips_with_sram_like
 output:
         inst interface(sram like)
         data interface(sram like)
 */
-module mips_core_with_sram_like (
+module mips_with_sram_like (
     input wire clk, rst,
     input wire [5:0] ext_int,
 
@@ -50,7 +50,7 @@ module mips_core_with_sram_like (
 
     wire longest_stall;
 
-mips_core mips(
+mips mips_core(
     .clk(clk),.rst(rst),.ext_int(ext_int),
 
     //instr
@@ -62,8 +62,8 @@ mips_core mips(
     //data
     .dataStall(dataStall),
     .aluoutM(data_sram_addr),
-    .readDataM(data_sram_rdata),
-    .mem_write_dataM(data_sram_rdata),
+    .readdataM(data_sram_rdata),
+    .mem_write_dataM(data_sram_wdata),
     .mem_enM(data_sram_en),
     .mem_wenM(data_sram_wen),
 
@@ -82,7 +82,7 @@ i_sram_to_sram_like i_sram_to_sram_like(
     .inst_sram_en(inst_sram_en),
     .inst_sram_addr(inst_sram_addr),
     .inst_sram_rdata(inst_sram_rdata),
-    .i_stall(i_stall),
+    .i_stall(instrStall),
     //sram like
     .inst_req(inst_req), 
     .inst_wr(inst_wr),
@@ -104,7 +104,7 @@ d_sram_to_sram_like d_sram_to_sram_like(
     .data_sram_rdata(data_sram_rdata),
     .data_sram_wen(data_sram_wen),
     .data_sram_wdata(data_sram_wdata),
-    .d_stall(d_stall),
+    .d_stall(dataStall),
     //sram like
     .data_req(data_req),    
     .data_wr(data_wr),
