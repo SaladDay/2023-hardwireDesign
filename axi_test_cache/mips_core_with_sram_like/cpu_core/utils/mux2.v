@@ -3,9 +3,9 @@
 // Company: 
 // Engineer: 
 // 
-// Create Date: 2017/11/02 14:20:09
+// Create Date: 2017/11/02 14:44:10
 // Design Name: 
-// Module Name: regfile
+// Module Name: mux2
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,22 +20,11 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module regfile(
-	input wire clk,
-	input wire we3,
-	input wire[4:0] ra1,ra2,wa3,
-	input wire[31:0] wd3,
-	output wire[31:0] rd1,rd2
+module mux2 #(parameter WIDTH = 8)(
+	input wire[WIDTH-1:0] d0,d1,
+	input wire s,
+	output wire[WIDTH-1:0] y
     );
-
-	reg [31:0] rf[31:0];
-
-	always @(posedge clk) begin
-		if(we3) begin
-			 rf[wa3] <= wd3;
-		end
-	end
-
-	assign rd1 = (ra1 != 0) ? rf[ra1] : 0;
-	assign rd2 = (ra2 != 0) ? rf[ra2] : 0;
+	
+	assign y = s ? d1 : d0;
 endmodule

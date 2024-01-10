@@ -1,11 +1,12 @@
 `timescale 1ns / 1ps
+`include "../defines2.vh"
 //////////////////////////////////////////////////////////////////////////////////
 // Company: 
 // Engineer: 
 // 
-// Create Date: 2017/11/02 14:20:09
+// Create Date: 2017/11/23 22:54:57
 // Design Name: 
-// Module Name: regfile
+// Module Name: flopenr
 // Project Name: 
 // Target Devices: 
 // Tool Versions: 
@@ -20,22 +21,17 @@
 //////////////////////////////////////////////////////////////////////////////////
 
 
-module regfile(
-	input wire clk,
-	input wire we3,
-	input wire[4:0] ra1,ra2,wa3,
-	input wire[31:0] wd3,
-	output wire[31:0] rd1,rd2
+module flopenr #(parameter WIDTH = 8)(
+	input wire clk,rst,en,
+	input wire[WIDTH-1:0] d,
+	output reg[WIDTH-1:0] q
     );
-
-	reg [31:0] rf[31:0];
-
 	always @(posedge clk) begin
-		if(we3) begin
-			 rf[wa3] <= wd3;
+		if(rst) begin
+			q <= 0;
+		end else if(en) begin
+			/* code */
+			q <= d;
 		end
 	end
-
-	assign rd1 = (ra1 != 0) ? rf[ra1] : 0;
-	assign rd2 = (ra2 != 0) ? rf[ra2] : 0;
 endmodule
