@@ -38,7 +38,7 @@ module hazard(
 	input wire regwriteE,
 	input wire memtoregE,
 	input wire div_stallE,
-
+	input wire mul_stallE,
 	input wire hilotoregE,
 	input wire cp0toregE,
 
@@ -131,8 +131,8 @@ module hazard(
 
 
 	wire other_stall;
-	assign other_stall = (lwstallD | branchstallD | jrstallD | cp0stallD) & ~is_exceptM;
-	assign longest_stall = instrStall | dataStall | div_stallE;
+	assign other_stall = (lwstallD | branchstallD | jrstallD | cp0stallD | hilostallD) & ~is_exceptM;
+	assign longest_stall = instrStall | dataStall | div_stallE | mul_stallE;
 	//------------------stall judge end------------------//
 
 

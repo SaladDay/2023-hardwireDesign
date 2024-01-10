@@ -37,6 +37,7 @@ module mips(
 		cp0_writeD,is_invalidD,
 		hilotoregD,cp0toregD,
 		memreadD;
+	wire [1:0] mfhi_loD;
 
 	datapath datapath(
 		clk,rst,ext_int,instrD,
@@ -44,7 +45,7 @@ module mips(
 		alusrcD,regwriteD,jumpD,
 		hilo_writeD,jbralD,jrD,
 		cp0_writeD,is_invalidD,
-		regdstD,hilotoregD,cp0toregD,memreadD,
+		regdstD,hilotoregD,cp0toregD,memreadD,mfhi_loD,
 		
 		instrStall,
 		dataStall,
@@ -80,7 +81,8 @@ module mips(
 		hilotoregD,
 		cp0toregD,
 		regdstD,
-		memreadD
+		memreadD,
+		mfhi_loD
 	);
 
 	

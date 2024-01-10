@@ -14,6 +14,7 @@ module datapath(
 		cp0_writeD,is_invalidD,
 	input wire[1:0] regdstD,
 	input wire hilotoregD,cp0toregD,memreadD,
+	input wire [1:0] mfhi_loD,
 
 	//mips
 	input wire instrStall,
@@ -72,6 +73,7 @@ module datapath(
 	wire hilo_writeE; //hilo寄存器写信号
 	wire is_invalidE;
 	wire jbralE,cp0_writeE;		
+	wire [1:0] mfhi_loE;
 	//E datapath
 	wire [1:0] forwardaE,forwardbE;
 	wire hilotoregE,cp0toregE;
@@ -81,10 +83,10 @@ module datapath(
 	wire [31:0] signimmE;
 	wire [31:0] srcaE,srca2E,srca3E,  srcbE,srcb2E,srcb3E,srcb4E;
 	wire [31:0] aluoutE;
-	wire [63:0] read_hiloE,write_hiloE;//HILO读写数据
-	wire hilo_write2E; //考虑了除法后的hilo寄存器写信号
-	wire div_readyE; //除法运算是否完成
+	wire [63:0] read_hiloM,All_aluoutE;//HILO读写数据
+
 	wire div_stallE; //除法导致的流水线暂停控制
+	wire mul_stallE; //乘法流水线暂停
 	wire stallE,flushE; //Ex阶段暂停、刷新控制信号
 	wire is_AdEL_pcE,is_syscallE,is_breakE,is_eretE,is_overflowE; //例外标记
 	wire is_in_delayslotE;
@@ -97,9 +99,12 @@ module datapath(
 
 	//M controller
 	wire regwriteM,memtoregM,memwriteM,memreadM;
+	wire hilotoregM;
 	wire cp0toregM;
 	wire is_invalidM; //保留指令	
 	wire cp0_writeM; //cp0寄存器写信号
+	wire hilo_writeM;
+	wire [1:0] mfhi_loM;
 	//M datapath
 	wire [5:0] opM;
 	wire [4:0] writeregM;
@@ -116,6 +121,8 @@ module datapath(
 				cp0_epcM,cp0_configM,cp0_pridM,cp0_badvaddrM;
 	wire cp0_timer_intM;
 	wire [31:0] bad_addrM;
+	wire [31:0] resultM;
+	wire [63:0] aluoutHiloM;
 
 	//W controller
 	wire regwriteW,memtoregW;
@@ -128,15 +135,13 @@ module datapath(
 	
 //----------------------------------------------for debug begin----------------------------------------------------	
     wire [31:0] pcW;
-    wire [31:0] instrE,instrM,instrW;
+    wire [31:0] instrE,instrM;
     flopenrc #(32) rinstrE(clk,rst,~stallE,flushE,instrD,instrE);
     flopenrc #(32) rinstrM(clk,rst,~stallM,flushM,instrE,instrM);
-    flopenrc #(32) rinstrW(clk,rst,~stallW,flushW,instrM,instrW);
 
-    wire regwrite_for_debugW = stallW ? 0 : regwriteW; //todo
     flopenrc #(32) rpcW(clk,rst,~stallW,flushW,pcM,pcW);
     assign debug_wb_pc          = pcW;
-    assign debug_wb_rf_wen      = {4{regwrite_for_debugW}};
+    assign debug_wb_rf_wen      = {4{regwriteW & ~stallW}};
     assign debug_wb_rf_wnum     = writeregW;
     assign debug_wb_rf_wdata    = resultW;
 //----------------------------------------------for debug end----------------------------------------------------
@@ -144,21 +149,21 @@ module datapath(
 //----------------------------------------controler pipeline------------------------------------------
 
 	assign pcsrcD = branchD & equalD;
-	flopenrc #(18) regE(
+	flopenrc #(20) regE(
 		clk,
 		rst,
 		~stallE,
 		flushE,
-		{memtoregD,memwriteD,alusrcD,regdstD,regwriteD,alucontrolD,hilo_writeD,jbralD,cp0_writeD,is_invalidD,hilotoregD,cp0toregD,memreadD},
-		{memtoregE,memwriteE,alusrcE,regdstE,regwriteE,alucontrolE,hilo_writeE,jbralE,cp0_writeE,is_invalidE,hilotoregE,cp0toregE,memreadE}
+		{memtoregD,memwriteD,alusrcD,regdstD,regwriteD,alucontrolD,hilo_writeD,jbralD,cp0_writeD,is_invalidD,hilotoregD,cp0toregD,memreadD,mfhi_loD},
+		{memtoregE,memwriteE,alusrcE,regdstE,regwriteE,alucontrolE,hilo_writeE,jbralE,cp0_writeE,is_invalidE,hilotoregE,cp0toregE,memreadE,mfhi_loE}
 		);
-	flopenrc #(7) regM(
+	flopenrc #(12) regM(
 		clk,
 		rst,
 		~stallM,
 		flushM,
-		{memtoregE,memwriteE,regwriteE,cp0_writeE,is_invalidE,memreadE,cp0toregE},
-		{memtoregM,memwriteM,regwriteM,cp0_writeM,is_invalidM,memreadM,cp0toregM}
+		{memtoregE,memwriteE,regwriteE,cp0_writeE,is_invalidE,memreadE,cp0toregE,hilo_writeE,mfhi_loE,hilotoregE},
+		{memtoregM,memwriteM,regwriteM,cp0_writeM,is_invalidM,memreadM,cp0toregM,hilo_writeM,mfhi_loM,hilotoregM}
 		);
 	flopenrc #(2) regW(
 		clk,
@@ -190,6 +195,7 @@ module datapath(
 		regwriteE,
 		memtoregE,
 		div_stallE,
+		mul_stallE,
 
 		hilotoregE,
 		cp0toregE,
@@ -236,15 +242,19 @@ module datapath(
 	//decode stage
 	flopenrc #(32) r1D(clk,rst,~stallD,flushD,pcplus4F,pcplus4D);
 	flopenrc #(32) r2D(clk,rst,~stallD,flushD,instrF,instrD);
-	flopenrc #(1) r3D(clk,rst,~stallD,flushD,is_AdEL_pcF,is_AdEL_pcD);
+	flopenrc #(1) r3D(clk,rssrcb2Dt,~stallD,flushD,is_AdEL_pcF,is_AdEL_pcD);
 	flopenrc #(1) r4D(clk,rst,~stallD,flushD,is_in_delayslotF,is_in_delayslotD);
 	flopenrc #(32) r5D(clk,rst,~stallD,flushD,pcF,pcD);
 
 	signext se(instrD[15:0],opD[3:2],signimmD);
 	sl2 immsh(signimmD,signimmshD);
 	adder pcadd2(pcplus4D,signimmshD,pcbranchD);
-	mux2 #(32) forwardamux(srcaD,resultM,forwardaD,srca2D);
-	mux2 #(32) forwardbmux(srcbD,resultM,forwardbD,srcb2D);
+
+	wire [31:0] toForwardM;
+	assign toForwardM = resultM;
+
+	mux2 #(32) forwardamux(srcaD,toForwardM,forwardaD,srca2D);
+	mux2 #(32) forwardbmux(srcbD,toForwardM,forwardbD,srcb2D);
 	eqcmp comp(srca2D,srcb2D,opD,rtD,equalD);
 
 	assign opD = instrD[31:26];
@@ -277,8 +287,10 @@ module datapath(
 	flopenrc #(5) r12E(clk,rst,~stallE,flushE,cp0_waddrD,cp0_waddrE);
 	flopenrc #(5) r13E(clk,rst,~stallE,flushE,cp0_raddrD,cp0_raddrE);
 	
-	mux3 #(32) forwardaemux(srcaE,resultW,resultM,forwardaE,srca2E);
-	mux3 #(32) forwardbemux(srcbE,resultW,resultM,forwardbE,srcb2E);
+
+
+	mux3 #(32) forwardaemux(srcaE,resultW,toForwardM,forwardaE,srca2E);
+	mux3 #(32) forwardbemux(srcbE,resultW,toForwardM,forwardbE,srcb2E);
 	mux2 #(32) srcbmux(srcb2E,signimmE,alusrcE,srcb3E);
 	//跳转链接类指令,复用ALU,ALU源操作数选择分别为pcE and 8
 	mux2 #(32) alusrcamux(srca2E,pcE,jbralE,srca3E);
@@ -286,11 +298,9 @@ module datapath(
 	//CP0写后读数据前推
 	mux2 #(32) forwardcp0mux(cp0_rdataE,aluoutM,(cp0_raddrE == cp0_waddrM),cp0_rdata2E); 
 
-	alu alu(clk,rst,srca3E,srcb4E,alucontrolE,saE,read_hiloE,cp0_rdata2E,is_exceptM,
-			write_hiloE,aluoutE,div_readyE,div_stallE,is_overflowE);
-	assign hilo_write2E = (alucontrolE == `DIV_CONTROL | alucontrolE == `DIVU_CONTROL) ? 
-							(div_readyE & hilo_writeE) : (hilo_writeE); 
-	hilo_reg hilo_reg(clk,rst,(hilo_write2E & ~is_exceptM),write_hiloE,read_hiloE);
+	alu alu(clk,rst,srca3E,srcb4E,alucontrolE,saE,read_hiloM,cp0_rdata2E,is_exceptM,
+			All_aluoutE,mul_stallE,div_stallE,is_overflowE);
+	assign aluoutE = All_aluoutE[31:0];
 	mux3 #(5) wrmux(rtE,rdE,5'd31,regdstE,writeregE);
 
 	//mem stage
@@ -304,6 +314,19 @@ module datapath(
 	flopenrc #(1) r6M(clk,rst,~stallM,flushM,is_in_delayslotE,is_in_delayslotM);
 	flopenrc #(32) r7M(clk,rst,~stallM,flushM,pcE,pcM);
 	flopenrc #(5) r8M(clk,rst,~stallM,flushM,cp0_waddrE,cp0_waddrM);
+	flopenrc #(64) r9M(clk,rst,~stallM,flushM,All_aluoutE,aluoutHiloM);
+
+
+
+	hilo_reg hilo_reg(
+		.clk(clk),
+		.rst(rst),
+		.we(hilo_writeM),		//todo :检查是否需要异常处理
+		.hilo_in(aluoutHiloM),
+		.hilo_out(read_hiloM)
+	);
+	wire [31:0] hiloresultM;
+	mux2 #(32) hilomux(read_hiloM[63:32],read_hiloM[31:0],mfhi_loM[0],hiloresultM);//mfhilo 取结果
 
 	assign mem_enM = (memreadM | memwriteM) & ~is_exceptM; //存储器使能，防止异常地址写入或读出
 	mem_ctrl mem_ctrl(opM,aluoutM,readdataM,final_read_dataM,writedataM,mem_write_dataM,mem_wenM,is_AdEL_dataM,is_AdES_dataM);
@@ -357,10 +380,10 @@ module datapath(
 		.timer_int_o(cp0_timer_intM)
 	);
 
-	wire [31:0] resultaM,resultM;
+	wire [31:0] resultaM,resultbM;
 	mux2 #(32) res1mux(aluoutM,final_read_dataM,memtoregM,resultaM);
-	mux2 #(32) res2mux(resultaM,cp0_rdataM,cp0toregM,resultM);
-	// mux2 #(32) res3mux(aluoutM,readdataM,memtoregM,resultaM);
+	mux2 #(32) res2mux(resultaM,cp0_rdataM,cp0toregM,resultbM);
+	mux2 #(32) res3mux(resultbM,hiloresultM,hilotoregM,resultM);
 
 
 	//writeback stage

@@ -8,7 +8,8 @@ module controller(
     output wire memtoregD,memwriteD,branchD,alusrcD,regwriteD,jumpD,hilo_writeD,jbralD,jrD,cp0_writeD,is_invalidD,
     output wire hilotoregD,cp0toregD,
 	output wire [1:0] regdstD,
-	output wire memread
+	output wire memread,
+	output wire [1:0] mfhi_lo
 );
 	wire [5:0] opD;
 	wire [5:0] functD;
@@ -36,7 +37,8 @@ module controller(
 		is_invalidD,
 		hilotoregD,
 		cp0toregD,
-		memread
+		memread,
+		mfhi_lo
 		);
 
     aludec ad(functD,opD,rsD,rtD,alucontrolD);

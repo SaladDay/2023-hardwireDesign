@@ -38,11 +38,18 @@ module maindec(
 	output reg is_invalid,
 	output wire hilotoreg,
 	output wire cp0toreg,
-	output reg memread
+	output reg memread,
+	output wire [1:0] mfhi_lo
     );
 
 	assign hilotoreg = (op == 6'b000000) && (funct ==6'b010000|| funct == 6'b010010);
 	assign cp0toreg = ~(|(op ^ 6'b010000)) & ~(|(rs ^ 5'b00000));
+	wire mfhi,mflo;
+	assign mfhi = !(op ^ `R_TYPE) & !(funct ^ `MFHI);
+	assign mflo = !(op ^ `R_TYPE) & !(funct ^ `MFLO);
+	assign mfhi_lo = {mfhi,mflo};
+
+	
 	reg[11:0] controls;
 	assign {regwrite,regdst,alusrc,branch,memwrite,memtoreg,jump,hilo_write,jbral,jr,cp0_write} = controls;
 	always @(*) begin
