@@ -28,18 +28,21 @@ module alu(
 	input wire [63:0] hilo_in, //读取的HI、LO寄存器的值
 	input wire [31:0] cp0_rdata, //读取的CP0寄存器的值
 	input wire is_except, //用于触发异常时控制除法相关刷新
-	output wire[63:0] hilo_out, //全部的出口
+	output wire[63:0] big_result, //全部的出口
 	// output reg[31:0] result,
 	output wire mul_stall,  
 	output wire div_stall,   //除法的流水线暂停控制
 	output wire overflow     //溢出判断
 	// output wire zero
     );
-
+	//-----------------------检查溢出------------------------//
 	reg double_sign; //凑运算结果的双符号位，处理整型溢出
 	reg [31:0] result;
 	assign overflow = (alucontrolE==`ADD_CONTROL || alucontrolE==`SUB_CONTROL) & (double_sign ^ result[31]); 
+	//-----------------------检查溢出------------------------//
 
+
+	//-----------------------乘除法信号------------------------//
 	//div
 	wire div_sign,div_valid;
 	assign div_sign = (alucontrolE == `DIV_CONTROL);
@@ -51,17 +54,21 @@ module alu(
 	assign mul_sign = (alucontrolE == `MULT_CONTROL);
 	assign mul_valid = (alucontrolE == `MULT_CONTROL || alucontrolE == `MULTU_CONTROL);
 	wire [63:0] y_mul;
+	//-----------------------乘除法信号------------------------//
 
 
 
 
-	//final logic
-	assign hilo_out = ({64{div_valid}} & y_div) | ({64{mul_valid}} & y_mul) 		//乘除法
+	//-----------------------final Logic------------------------//
+	assign big_result = ({64{div_valid}} & y_div) | ({64{mul_valid}} & y_mul) 		//乘除法
 				| ({64{~div_valid & ~mul_valid}} & {32'b0,result})					//非乘除法
 				| ({64{(alucontrolE == `MTHI_CONTROL)}} & {a,hilo_in[31:0]})
 				| ({64{(alucontrolE == `MTLO_CONTROL)}} & {hilo_in[63:32],a}); 		
+	//-----------------------final Logic------------------------//
+
 
 	// todo：改进hilo的写逻辑
+	//-----------------------乘除法状态坤------------------------//
 	reg div_start;
 
 	always @(*) begin
@@ -101,6 +108,8 @@ module alu(
 			mul_start = 1'b0;
 		end
 	end
+	//-----------------------乘除法状态坤------------------------//
+	
 
 	//接入除法器
 	wire tempDiv_stall;
@@ -136,45 +145,7 @@ module alu(
 			`SUBU_CONTROL  :  result = a - b; //指令SUBU
 			`SLT_CONTROL   :  result = $signed(a) < $signed(b) ? 32'b1 : 32'b0;  //指令SLT、SLTI
 			`SLTU_CONTROL  :  result = a < b ? 32'b1 : 32'b0; //指令SLTU、SLTIU
-			// `MULT_CONTROL  :  hilo_out = $signed(a) * $signed(b); //指令MULT 
-			// `MULTU_CONTROL :  hilo_out = {32'b0, a} * {32'b0, b}; //指令MULTU
-			// `DIV_CONTROL   :  begin //指令DIV, 除法器控制状态机逻辑
-			// 	if(~div_ready & ~div_start) begin //~div_start : 为了保证除法进行过程中，除法源操作数不因ALU输入改变而重新被赋值
-			// 		//必须非阻塞赋值，否则时序不对
-			// 		div_start <= 1'b1;
-			// 		div_signed <= 1'b1;
-			// 		div_stall <= 1'b1;
-			// 		a_save <= a; //除法时保存两个操作数
-			// 		b_save <= b;
-			// 	end
-			// 	else if(div_ready) begin
-			// 		div_start <= 1'b0;
-			// 		div_signed <= 1'b1;
-			// 		div_stall <= 1'b0;
-			// 		hilo_out <= div_result;
-			// 	end
-			// end
-			// `DIVU_CONTROL  :  begin //指令DIVU, 除法器控制状态机逻辑
-			// 	if(~div_ready & ~div_start) begin //~div_start : 为了保证除法进行过程中，除法源操作数不因ALU输入改变而重新被赋值
-			// 		//必须非阻塞赋值，否则时序不对
-			// 		div_start <= 1'b1;
-			// 		div_signed <= 1'b0;
-			// 		div_stall <= 1'b1;
-			// 		a_save <= a; ////除法时保存两个操作数
-			// 		b_save <= b;
-			// 	end
-			// 	else if(div_ready) begin
-			// 		div_start <= 1'b0;
-			// 		div_signed <= 1'b0;
-			// 		div_stall <= 1'b0;
-			// 		hilo_out <= div_result;
-			// 	end
-			// end
-			//数据移动指令4条
-			// `MFHI_CONTROL  :  result = hilo_in[63:32]; //指令MFHI
-			// `MFLO_CONTROL  :  result = hilo_in[31:0]; //指令MFLO
-			// `MTHI_CONTROL  :  hilo_out = {a,hilo_in[31:0]}; //指令MTHI
-			// `MTLO_CONTROL  :  hilo_out = {hilo_in[63:32],a}; //指令MTLO
+
 			default        :  result = `ZeroWord;
 		endcase
 	end

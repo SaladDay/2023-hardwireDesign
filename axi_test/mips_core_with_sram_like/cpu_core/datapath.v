@@ -295,6 +295,7 @@ module datapath(
 	//跳转链接类指令,复用ALU,ALU源操作数选择分别为pcE and 8
 	mux2 #(32) alusrcamux(srca2E,pcE,jbralE,srca3E);
 	mux2 #(32) alusrcbmux(srcb3E,32'h00000008,jbralE,srcb4E);
+	
 	//CP0写后读数据前推
 	mux2 #(32) forwardcp0mux(cp0_rdataE,aluoutM,(cp0_raddrE == cp0_waddrM),cp0_rdata2E); 
 
