@@ -158,11 +158,11 @@ module hazard(
 	// assign flushE = (( ) & ~longest_stall) | is_exceptM; //stalling D flushes next stage
 	// assign flushM = is_exceptM;
 	// assign flushW = is_exceptM;
-	assign flushF = 1'b0;
+	assign flushF = is_exceptM;
 	assign flushD = is_exceptM;
 	assign flushE = other_stall & ~longest_stall | is_exceptM;
 	assign flushM = is_exceptM;
-	assign flushW = 1'b0;
+	assign flushW = is_exceptM;
 	//------------------flush decode end------------------//
 endmodule
 

@@ -39,7 +39,7 @@ module cache (
     input          cache_data_data_ok
 );
 
-    i_cache i_cache(
+    i_cache_plus i_cache_plus(
         .clk(clk), .rst(rst),
         .cpu_inst_req     (cpu_inst_req     ),
         .cpu_inst_wr      (cpu_inst_wr      ),
@@ -61,6 +61,7 @@ module cache (
     );
 
     d_cache d_cache(
+    // d_cache_2waywb d_cache_2waywb(
         .clk(clk), .rst(rst),
         .cpu_data_req     (cpu_data_req     ),
         .cpu_data_wr      (cpu_data_wr      ),

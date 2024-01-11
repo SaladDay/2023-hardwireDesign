@@ -15,8 +15,6 @@ module datapath(
 	input wire[1:0] regdstD,
 	input wire hilotoregD,cp0toregD,memreadD,
 	input wire [1:0] mfhi_loD,
-	output wire memreadE,memwriteE,
-
 
 	//mips
 	input wire instrStall,
@@ -28,13 +26,8 @@ module datapath(
 	input wire[31:0] readdataM,
 	output wire mem_enM, //存储器使能
 	output wire [3:0] mem_wenM,
-
 	
 	output wire longest_stall,
-	output wire stallF,
-	output wire stallM,
-	output wire pcnextFD,
-	output wire [31:0] mem_addrE,
 	//for debug
     output [31:0] debug_wb_pc     ,
     output [3:0] debug_wb_rf_wen  ,
@@ -47,10 +40,11 @@ module datapath(
 				pcbranchD,
 				pc4branchFD,
 				pc4branchjFD,
-				pc4branchjjrFD;
+				pc4branchjjrFD,
+				pcnextFD;
 
 	//F datapath
-	wire flushF;
+	wire stallF,flushF;
 	wire is_AdEL_pcF;
 	wire is_in_delayslotF; //当前指令是否在延迟槽
 
@@ -73,7 +67,7 @@ module datapath(
 	
 
 	//E controler
-	wire regwriteE,alusrcE,memtoregE;
+	wire regwriteE,alusrcE,memwriteE,memtoregE,memreadE;
 	wire [1:0] regdstE;
 	wire [4:0] alucontrolE;
 	wire hilo_writeE; //hilo寄存器写信号
@@ -115,7 +109,7 @@ module datapath(
 	wire [5:0] opM;
 	wire [4:0] writeregM;
 	wire [31:0] final_read_dataM,writedataM;
-	wire flushM;
+	wire flushM,stallM;
 	wire is_AdEL_pcM,is_syscallM,is_breakM,is_eretM,is_AdEL_dataM,is_AdES_dataM,is_overflowM; //例外标记
 	wire is_in_delayslotM;
 	wire [31:0] pcM;
@@ -308,7 +302,7 @@ module datapath(
 			All_aluoutE,mul_stallE,div_stallE,is_overflowE);
 	assign aluoutE = All_aluoutE[31:0];
 	mux3 #(5) wrmux(rtE,rdE,5'd31,regdstE,writeregE);
-	assign mem_addrE = aluoutE;
+
 	//mem stage
 	flopenrc #(32) r1M(clk,rst,~stallM,flushM,srcb2E,writedataM);
 	flopenrc #(32) r2M(clk,rst,~stallM,flushM,aluoutE,aluoutM);

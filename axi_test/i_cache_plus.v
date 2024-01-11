@@ -1,72 +1,111 @@
 `timescale 1ns / 1ps
 
+//////////////////////////////////////////////////////////////////////////////////
+// Company: 
+// Engineer: 
+// 
+// Create Date: 2020/07/21 12:31:54
+// Design Name: FanQin
+// Module Name: d_cache
+// Project Name: 
+// Target Devices: 
+// Tool Versions: 
+// Description: 
+// 
+// Dependencies: 
+// 
+// Revision:
+// Revision 0.01 - File Created
+// Additional Comments:
+// 
+//////////////////////////////////////////////////////////////////////////////////
 
+`define  A_WIDTH         32                                                           // 32ä½çš„åœ°å€å®½åº¦
+`define  SET_ADDR_LEN    9                                                            // 2çš„SET_ADDR_LENæ¬¡æ–¹ä¸ªç»„
+`define  WAY_CNT         2                                                            // 4ä¸ªè·¯
+`define  WORD_ADDR_LEN   2                                                            // 2ä½çš„å­—èŠ‚åç§»
+`define  LINE_ADDR_LEN   0                                                            // 0ä½çš„å­—åç§»
 
-`define  A_WIDTH         32                                                           // 32Î»µÄµØÖ·¿í¶È
-`define  SET_ADDR_LEN    9                                                            // 2µÄSET_ADDR_LEN´Î·½¸ö×é
-`define  WAY_CNT         2                                                           // 2¸öÂ·
-`define  WORD_ADDR_LEN   2                                                            // 2Î»µÄ×Ö½ÚÆ«ÒÆ
-`define  LINE_ADDR_LEN   0                                                            // 0Î»µÄ×ÖÆ«ÒÆ
+`define  TAG_ADDR_LEN    (32 - `WORD_ADDR_LEN - `SET_ADDR_LEN - `LINE_ADDR_LEN)       // æ ‡è®°åŸŸçš„é•¿åº¦
+`define  MEM_ADDR_LEN    (`TAG_ADDR_LEN + `SET_ADDR_LEN)                              // è®¿é—®SRAMçš„åœ°å€é•¿åº¦ æ­¤å¤„ä¸º{30ä½ï¼Œ00}
+`define  SET_SIZE        (1 << `SET_ADDR_LEN)                                         // ç»„çš„æ•°é‡
 
-`define  TAG_ADDR_LEN    (32 - `WORD_ADDR_LEN - `SET_ADDR_LEN - `LINE_ADDR_LEN)       // ±ê¼ÇÓòµÄ³¤¶È
-`define  MEM_ADDR_LEN    (`TAG_ADDR_LEN + `SET_ADDR_LEN)                              // ·ÃÎÊSRAMµÄµØÖ·³¤¶È ´Ë´¦Îª{30Î»£¬00}
-`define  SET_SIZE        (1 << `SET_ADDR_LEN)                                         // ×éµÄÊıÁ¿
+    // input wire clk, rst,
+    // //mips core
+    // input         cpu_inst_req     ,
+    // input         cpu_inst_wr      ,
+    // input  [1 :0] cpu_inst_size    ,
+    // input  [31:0] cpu_inst_addr    ,
+    // input  [31:0] cpu_inst_wdata   ,
+    // output [31:0] cpu_inst_rdata   ,
+    // output        cpu_inst_addr_ok ,
+    // output        cpu_inst_data_ok ,
 
-module d_cache (
+    // //axi interface
+    // output         cache_inst_req     ,
+    // output         cache_inst_wr      ,
+    // output  [1 :0] cache_inst_size    ,
+    // output  [31:0] cache_inst_addr    ,
+    // output  [31:0] cache_inst_wdata   ,
+    // input   [31:0] cache_inst_rdata   ,
+    // input          cache_inst_addr_ok ,
+    // input          cache_inst_data_ok 
+
+module i_cache_plus (
     input wire clk, rst,
     //mips core
-    input          cpu_data_req       ,
-    input          cpu_data_wr        ,
-    input   [1 :0] cpu_data_size      ,
-    input   [31:0] cpu_data_addr      ,
-    input   [31:0] cpu_data_wdata     ,
-    output  [31:0] cpu_data_rdata     ,
-    output         cpu_data_addr_ok   ,
-    output         cpu_data_data_ok   ,
+    input          cpu_inst_req       ,
+    input          cpu_inst_wr        ,
+    input   [1 :0] cpu_inst_size      ,
+    input   [31:0] cpu_inst_addr      ,
+    input   [31:0] cpu_inst_wdata     ,
+    output  [31:0] cpu_inst_rdata     ,
+    output         cpu_inst_addr_ok   ,
+    output         cpu_inst_data_ok   ,
     //axi interface
-    output         cache_data_req     ,
-    output         cache_data_wr      ,
-    output  [1 :0] cache_data_size    ,
-    output  [31:0] cache_data_addr    ,
-    output  [31:0] cache_data_wdata   ,
-    input   [31:0] cache_data_rdata   ,
-    input          cache_data_addr_ok ,
-    input          cache_data_data_ok
+    output         cache_inst_req     ,
+    output         cache_inst_wr      ,
+    output  [1 :0] cache_inst_size    ,
+    output  [31:0] cache_inst_addr    ,
+    output  [31:0] cache_inst_wdata   ,
+    input   [31:0] cache_inst_rdata   ,
+    input          cache_inst_addr_ok ,
+    input          cache_inst_data_ok
 );
 
-    //CacheÅäÖÃ
+    //Cacheé…ç½®
     parameter  INDEX_WIDTH  = 9;
     parameter  OFFSET_WIDTH = 2;
     localparam TAG_WIDTH    = 32 - INDEX_WIDTH - OFFSET_WIDTH;
     localparam CACHE_DEEPTH = 1 << INDEX_WIDTH;
 
-    //Cache´æ´¢µ¥Ôª
-    // ±£´æÓĞĞ§ĞÅÏ¢
+    //Cacheå­˜å‚¨å•å…ƒ
+    // ä¿å­˜æœ‰æ•ˆä¿¡æ¯
     reg                                                 cache_valid_way_0           [CACHE_DEEPTH - 1 : 0];
     reg                                                 cache_valid_way_1           [CACHE_DEEPTH - 1 : 0];
     reg                                                 cache_valid_way_2           [CACHE_DEEPTH - 1 : 0];
     reg                                                 cache_valid_way_3           [CACHE_DEEPTH - 1 : 0];
-    // ±£´æÔàĞÅÏ¢
+    // ä¿å­˜è„ä¿¡æ¯
     reg                                                 cache_dirty_way_0           [CACHE_DEEPTH-1:0];
     reg                                                 cache_dirty_way_1           [CACHE_DEEPTH-1:0];
     reg                                                 cache_dirty_way_2           [CACHE_DEEPTH-1:0];
     reg                                                 cache_dirty_way_3           [CACHE_DEEPTH-1:0];
-    // ±£´æ±ê¼Ç
+    // ä¿å­˜æ ‡è®°
     reg     [TAG_WIDTH-1:0]                             cache_tags_way_0            [CACHE_DEEPTH - 1 : 0];
     reg     [TAG_WIDTH-1:0]                             cache_tags_way_1            [CACHE_DEEPTH - 1 : 0];
     reg     [TAG_WIDTH-1:0]                             cache_tags_way_2            [CACHE_DEEPTH - 1 : 0];
     reg     [TAG_WIDTH-1:0]                             cache_tags_way_3            [CACHE_DEEPTH - 1 : 0];
-    // ±£´æÊı¾İ
+    // ä¿å­˜æ•°æ®
     reg     [31 : 0]                                    cache_block_way_0           [CACHE_DEEPTH - 1 : 0];
     reg     [31 : 0]                                    cache_block_way_1           [CACHE_DEEPTH - 1 : 0];
     reg     [31 : 0]                                    cache_block_way_2           [CACHE_DEEPTH - 1 : 0];
     reg     [31 : 0]                                    cache_block_way_3           [CACHE_DEEPTH - 1 : 0];
-    //±£´æÄêÁä
+    //ä¿å­˜å¹´é¾„
     reg     [3: 0]                                      way_age_way_0               [CACHE_DEEPTH - 1 : 0];
     reg     [3: 0]                                      way_age_way_1               [CACHE_DEEPTH - 1 : 0];
     reg     [3: 0]                                      way_age_way_2               [CACHE_DEEPTH - 1 : 0];
     reg     [3: 0]                                      way_age_way_3               [CACHE_DEEPTH - 1 : 0];
-    //±£´æÃ¿×é×î´óÄêÁäµÄÂ·ºÅ
+    //ä¿å­˜æ¯ç»„æœ€å¤§å¹´é¾„çš„è·¯å·
     reg     [1: 0]                                      way_hold_max_age            [CACHE_DEEPTH - 1 : 0];
     
     //FSM
@@ -76,23 +115,23 @@ module d_cache (
     localparam          WR_DRAM          =   1;
     localparam          RD_DRAM          =   2;
 
-    //·ÃÎÊµØÖ··Ö½â
+    //è®¿é—®åœ°å€åˆ†è§£
     wire    [OFFSET_WIDTH-1:0]                          offset;
     wire    [INDEX_WIDTH-1:0]                           index;
     wire    [TAG_WIDTH-1:0]                             tag;
 
-    assign  offset = cpu_data_addr[OFFSET_WIDTH - 1 : 0];
-    assign  index  = cpu_data_addr[INDEX_WIDTH + OFFSET_WIDTH - 1 : OFFSET_WIDTH];  //11:2
-    assign  tag    = cpu_data_addr[31 : INDEX_WIDTH + OFFSET_WIDTH];
+    assign  offset = cpu_inst_addr[OFFSET_WIDTH - 1 : 0];
+    assign  index  = cpu_inst_addr[INDEX_WIDTH + OFFSET_WIDTH - 1 : OFFSET_WIDTH];  //11:2
+    assign  tag    = cpu_inst_addr[31 : INDEX_WIDTH + OFFSET_WIDTH];
 
-    //·ÃÎÊCache line
+    //è®¿é—®Cache line
     wire                                                c_valid;
     wire [TAG_WIDTH-1:0]                                c_tag;
     wire [31:0]                                         c_block;
 
-    // ÅĞ¶ÏÊÇ·ñÃüÖĞ
+    // åˆ¤æ–­æ˜¯å¦å‘½ä¸­
     wire                      valid_tag_hit;
-    // ÃüÖĞµÄÂ·Êı
+    // å‘½ä¸­çš„è·¯æ•°
     wire [1:0]                hit_way;
 
     assign valid_tag_hit = (cache_valid_way_0[index] && tag == cache_tags_way_0[index])||
@@ -110,7 +149,7 @@ module d_cache (
                            (cache_valid_way_2[index] && tag == cache_tags_way_2[index]) ? 2:
                            (cache_valid_way_3[index] && tag == cache_tags_way_3[index]) ? 3:0;
 
-    // »ñµÃcache¶ÔÓ¦µÄvalid
+    // è·å¾—cacheå¯¹åº”çš„valid
     assign c_valid       = (cache_valid_way_0[index] && tag == cache_tags_way_0[index])||
                            (cache_valid_way_1[index] && tag == cache_tags_way_1[index])||
                            (cache_valid_way_2[index] && tag == cache_tags_way_2[index])||
@@ -119,71 +158,71 @@ module d_cache (
     assign c_tag         = (way_hold_max_age[index]==0) ? cache_tags_way_0[index] : (way_hold_max_age[index]==1) ? cache_tags_way_1[index] : 
                            (way_hold_max_age[index]==2) ? cache_tags_way_2[index] : (way_hold_max_age[index]==3) ? cache_tags_way_3[index] : 0;
 
-    // »ñµÃcache¶ÔÓ¦µÄdata
+    // è·å¾—cacheå¯¹åº”çš„data
     assign c_block                      =  hit && hit_way==0 ? cache_block_way_0[index] :
                                            hit && hit_way==1 ? cache_block_way_1[index] :
                                            hit && hit_way==2 ? cache_block_way_2[index] :
                                            hit && hit_way==3 ? cache_block_way_3[index] : 0;
 
-    //ÅĞ¶ÏÊÇ·ñÃüÖĞ
+    //åˆ¤æ–­æ˜¯å¦å‘½ä¸­
     wire hit;
     wire miss;
     assign hit   = c_valid;
     assign miss  = ~hit;
 
-    //¶Á»òĞ´
+    //è¯»æˆ–å†™
     wire read;
     wire write;
     assign read  = ~write;
-    assign write = cpu_data_wr;
+    assign write = cpu_inst_wr;
 
-    //¶ÁÄÚ´æ¿ØÖÆ¿ªÊ¼
-    //±äÁ¿read_req, addr_rcv, read_finishÓÃÓÚ¹¹ÔìÀàsramĞÅºÅ¡£
-    reg  addr_rcv;       //µØÖ·½ÓÊÕ³É¹¦(addr_ok)ºóµ½½áÊø
-    wire read_finish;    //Êı¾İ½ÓÊÕ³É¹¦(data_ok)£¬¼´¶ÁÇëÇó½áÊø
+    //è¯»å†…å­˜æ§åˆ¶å¼€å§‹
+    //å˜é‡read_req, addr_rcv, read_finishç”¨äºæ„é€ ç±»sramä¿¡å·ã€‚
+    reg  addr_rcv;       //åœ°å€æ¥æ”¶æˆåŠŸ(addr_ok)ååˆ°ç»“æŸ
+    wire read_finish;    //æ•°æ®æ¥æ”¶æˆåŠŸ(data_ok)ï¼Œå³è¯»è¯·æ±‚ç»“æŸ
     always @(posedge clk) begin
         addr_rcv <= rst ? 1'b0 :
-                    //read & cache_data_req & cache_data_addr_ok ? 1'b1 :
-                    dram_wr_req & cache_data_addr_ok ? 1'b1 :
+                    //read & cache_inst_req & cache_inst_addr_ok ? 1'b1 :
+                    dram_wr_req & cache_inst_addr_ok ? 1'b1 :
                     read_finish ? 1'b0 : addr_rcv;
     end
-    assign read_finish = read & cache_data_data_ok;
-    //¶ÁÄÚ´æ¿ØÖÆ½áÊø
+    assign read_finish = read & cache_inst_data_ok;
+    //è¯»å†…å­˜æ§åˆ¶ç»“æŸ
 
-    //Ğ´ÄÚ´æ¿ØÖÆ¿ªÊ¼
+    //å†™å†…å­˜æ§åˆ¶å¼€å§‹
     reg  waddr_rcv;      
     wire write_finish;   
     always @(posedge clk) begin
         waddr_rcv <= rst ? 1'b0 :
-                     //write & cache_data_req & cache_data_addr_ok ? 1'b1 :
-                     dram_wr_req & cache_data_addr_ok ? 1'b1 :
+                     //write & cache_inst_req & cache_inst_addr_ok ? 1'b1 :
+                     dram_wr_req & cache_inst_addr_ok ? 1'b1 :
                      write_finish ? 1'b0 : waddr_rcv;
     end
-    assign write_finish = write & cache_data_data_ok;
-    //Ğ´ÄÚ´æ¿ØÖÆ½áÊø
+    assign write_finish = write & cache_inst_data_ok;
+    //å†™å†…å­˜æ§åˆ¶ç»“æŸ
 
     //output to mips core
-    assign cpu_data_rdata   = hit ? c_block : cache_data_rdata;
-    assign cpu_data_addr_ok = cpu_data_req & hit;//hit;//read & cpu_data_req & hit | cache_data_req & cache_data_addr_ok;
-    assign cpu_data_data_ok = cpu_data_req & hit;//read & cpu_data_req & hit | cache_data_data_ok;
+    assign cpu_inst_rdata   = hit ? c_block : cache_inst_rdata;
+    assign cpu_inst_addr_ok = cpu_inst_req & hit;//hit;//read & cpu_inst_req & hit | cache_inst_req & cache_inst_addr_ok;
+    assign cpu_inst_data_ok = cpu_inst_req & hit;//read & cpu_inst_req & hit | cache_inst_data_ok;
  
     wire [31:0] dram_wr_addr,dram_rd_addr;
     assign  dram_wr_addr              =   {c_tag,index,2'b00};
-    assign  dram_rd_addr              =   cpu_data_addr;
+    assign  dram_rd_addr              =   cpu_inst_addr;
     //output to axi interface
-    assign cache_data_req   = (dram_rd_req ) | (dram_wr_req);//dram_rd_req & ~addr_rcv | dram_wr_req & ~waddr_rcv;
-    assign cache_data_wr    = dram_wr_req ? 1 : 0;;
-    assign cache_data_size  = 2'b10;        //    wire    dram_wr_req,dram_rd_req;
-    assign cache_data_addr  = dram_wr_req ? dram_wr_addr : dram_rd_req ?  dram_rd_addr : 32'b0;//cpu_data_addr;
-    assign cache_data_wdata = c_block;//cpu_data_wdata;
+    assign cache_inst_req   = (dram_rd_req ) | (dram_wr_req);//dram_rd_req & ~addr_rcv | dram_wr_req & ~waddr_rcv;
+    assign cache_inst_wr    = dram_wr_req ? 1 : 0;;
+    assign cache_inst_size  = 2'b10;        //    wire    dram_wr_req,dram_rd_req;
+    assign cache_inst_addr  = dram_wr_req ? dram_wr_addr : dram_rd_req ?  dram_rd_addr : 32'b0;//cpu_inst_addr;
+    assign cache_inst_wdata = c_block;//cpu_inst_wdata;
 
     // data_cache state machine
-    // ½öÓÃÓÚ¿ØÖÆ¶ÁÓëĞ´ÇëÇóĞÅºÅ
+    // ä»…ç”¨äºæ§åˆ¶è¯»ä¸å†™è¯·æ±‚ä¿¡å·
     wire   dram_wr_val,dram_rd_val;
-    assign dram_wr_val = dram_wr_req ? cache_data_data_ok : 0;
-    assign dram_rd_val = dram_rd_req ? cache_data_data_ok : 0; 
+    assign dram_wr_val = dram_wr_req ? cache_inst_data_ok : 0;
+    assign dram_rd_val = dram_rd_req ? cache_inst_data_ok : 0; 
     // dram write/read request
-    // Í¨¹ıstate¿ØÖÆ¶ÁÓëĞ´ÇëÇóĞÅºÅ
+    // é€šè¿‡stateæ§åˆ¶è¯»ä¸å†™è¯·æ±‚ä¿¡å·
     wire    dram_wr_req,dram_rd_req;
     assign  dram_wr_req = ( state == WR_DRAM );
     assign  dram_rd_req = ( state == RD_DRAM );
@@ -193,9 +232,9 @@ module d_cache (
         end
         else begin
             case(state)
-                CPU_EXEC:if( miss & dirty & cpu_data_req)          // dirty block write back to dram
+                CPU_EXEC:if( miss & dirty & cpu_inst_req)          // dirty block write back to dram
                             state   <=  WR_DRAM;
-                        else if( miss & cpu_data_req)              // request new block from dram
+                        else if( miss & cpu_inst_req)              // request new block from dram
                             state   <=  RD_DRAM;
                         else
                             state   <=  CPU_EXEC;
@@ -212,16 +251,16 @@ module d_cache (
         end
     end
 
-    //Ğ´ÈëCache
-    //±£´æµØÖ·ÖĞµÄtag, index£¬·ÀÖ¹addr·¢Éú¸Ä±ä
+    //å†™å…¥Cache
+    //ä¿å­˜åœ°å€ä¸­çš„tag, indexï¼Œé˜²æ­¢addrå‘ç”Ÿæ”¹å˜
     reg [TAG_WIDTH-1:0]   tag_save;
     reg [INDEX_WIDTH-1:0] index_save;
-    //ÓĞcpu_data_req²Å±£´æ
+    //æœ‰cpu_inst_reqæ‰ä¿å­˜
     always @(posedge clk) begin
         tag_save   <= rst ? 0 :
-                      cpu_data_req ? tag : tag_save;
+                      cpu_inst_req ? tag : tag_save;
         index_save <= rst ? 0 :
-                      cpu_data_req ? index : index_save;
+                      cpu_inst_req ? index : index_save;
     end
 
     wire [31:0] write_cache_data;
@@ -231,7 +270,7 @@ module d_cache (
     integer             max_age_way;
     always @(posedge clk) begin
         if(rst) begin
-            for(i=0; i<CACHE_DEEPTH; i=i+1) begin   //¸Õ¿ªÊ¼½«CacheÖÃÎªÎŞĞ§
+            for(i=0; i<CACHE_DEEPTH; i=i+1) begin   //åˆšå¼€å§‹å°†Cacheç½®ä¸ºæ— æ•ˆ
                 // valid
                 cache_valid_way_0[i] <= 0;
                 cache_valid_way_1[i] <= 0;
@@ -254,36 +293,36 @@ module d_cache (
             max_age_way <= 0;
         end
         else begin
-            if(dram_rd_val) begin //¶ÁÈ±Ê§£¬·Ã´æ½áÊøÊ±
+            if(dram_rd_val) begin //è¯»ç¼ºå¤±ï¼Œè®¿å­˜ç»“æŸæ—¶
                 case (way_hold_max_age[index_save])
                     2'd0: begin
                         cache_valid_way_0[index_save]  <=  1'b1;
                         cache_dirty_way_0[index_save]  <=  1'b0;
                         cache_tags_way_0 [index_save]  <=  tag_save;
-                        cache_block_way_0[index_save]  <=  cache_data_rdata; //Ğ´ÈëCache line
+                        cache_block_way_0[index_save]  <=  cache_inst_rdata; //å†™å…¥Cache line
                     end
                     2'd1: begin
                         cache_valid_way_1[index_save]  <=  1'b1;
                         cache_dirty_way_1[index_save]  <=  1'b0;
                         cache_tags_way_1 [index_save]  <=  tag_save;
-                        cache_block_way_1[index_save]  <=  cache_data_rdata; //Ğ´ÈëCache line
+                        cache_block_way_1[index_save]  <=  cache_inst_rdata; //å†™å…¥Cache line
                     end
                     2'd2: begin
                         cache_valid_way_2[index_save]  <=  1'b1;
                         cache_dirty_way_2[index_save]  <=  1'b0;
                         cache_tags_way_2 [index_save]  <=  tag_save;
-                        cache_block_way_2[index_save]  <=  cache_data_rdata; //Ğ´ÈëCache line
+                        cache_block_way_2[index_save]  <=  cache_inst_rdata; //å†™å…¥Cache line
                     end
                     2'd3: begin
                         cache_valid_way_3[index_save]  <=  1'b1;
                         cache_dirty_way_3[index_save]  <=  1'b0;
                         cache_tags_way_3 [index_save]  <=  tag_save;
-                        cache_block_way_3[index_save]  <=  cache_data_rdata; //Ğ´ÈëCache line
+                        cache_block_way_3[index_save]  <=  cache_inst_rdata; //å†™å…¥Cache line
                     end
                     default:;
                 endcase
                 
-                // ÕÒµ½ÄêÁä×î´óµÄwayºÅ
+                // æ‰¾åˆ°å¹´é¾„æœ€å¤§çš„wayå·
                 if((0!=way_hold_max_age[index_save]?way_age_way_0[index_save]+1:0)>=(1!=way_hold_max_age[index_save]?way_age_way_1[index_save]+1:0)&&
                 (0!=way_hold_max_age[index_save]?way_age_way_0[index_save]+1:0)>=(2!=way_hold_max_age[index_save]?way_age_way_2[index_save]+1:0)&&
                 (0!=way_hold_max_age[index_save]?way_age_way_0[index_save]+1:0)>=(3!=way_hold_max_age[index_save]?way_age_way_3[index_save]+1:0)) begin
@@ -301,15 +340,15 @@ module d_cache (
                             (3!=way_hold_max_age[index_save]?way_age_way_3[index_save]+1:0)>=(2!=way_hold_max_age[index_save]?way_age_way_2[index_save]+1:0)) begin
                     way_hold_max_age[index_save] <= 3;
                 end
-                // ÆäËüµÄwayÄêÁä¼Ó1
+                // å…¶å®ƒçš„wayå¹´é¾„åŠ 1
                 way_age_way_0[index_save] <= way_hold_max_age[index_save]==0 ? 0 : way_age_way_0[index_save] + 1;
                 way_age_way_1[index_save] <= way_hold_max_age[index_save]==1 ? 0 : way_age_way_1[index_save] + 1;
                 way_age_way_2[index_save] <= way_hold_max_age[index_save]==2 ? 0 : way_age_way_2[index_save] + 1;
                 way_age_way_3[index_save] <= way_hold_max_age[index_save]==3 ? 0 : way_age_way_3[index_save] + 1;
 
             end
-            else if(write & hit) begin   //Ğ´ÃüÖĞÊ±ĞèÒªĞ´Cache
-                //¸üĞÂÔàÎ»
+            else if(write & hit) begin   //å†™å‘½ä¸­æ—¶éœ€è¦å†™Cache
+                //æ›´æ–°è„ä½
                 case (hit_way)
                     0: begin
                         cache_dirty_way_0[index]  <=  1'b1;
@@ -325,7 +364,7 @@ module d_cache (
                     end
                     default:;
                 endcase
-                //½«Êı¾İĞ´Èëcache
+                //å°†æ•°æ®å†™å…¥cache
                 case (hit_way)
                     0: begin
                         cache_block_way_0[index] <= write_cache_data;
@@ -341,7 +380,7 @@ module d_cache (
                     end
                     default:;
                 endcase
-                // ÕÒµ½ÄêÁä×î´óµÄwayºÅ
+                // æ‰¾åˆ°å¹´é¾„æœ€å¤§çš„wayå·
                 if((0!=hit_way?way_age_way_0[index]+1:0)>=(1!=hit_way?way_age_way_1[index]+1:0)&&
                 (0!=hit_way?way_age_way_0[index]+1:0)>=(2!=hit_way?way_age_way_2[index]+1:0)&&
                 (0!=hit_way?way_age_way_0[index]+1:0)>=(3!=hit_way?way_age_way_3[index]+1:0)) begin
@@ -359,7 +398,7 @@ module d_cache (
                             (3!=hit_way?way_age_way_3[index]+1:0)>=(2!=hit_way?way_age_way_2[index]+1:0)) begin
                     way_hold_max_age[index] <= 3;
                 end
-                // ÆäËüµÄwayÄêÁä¼Ó1
+                // å…¶å®ƒçš„wayå¹´é¾„åŠ 1
                 way_age_way_0[index] <= hit_way==0 ? 0 : way_age_way_0[index] + 1;
                 way_age_way_1[index] <= hit_way==1 ? 0 : way_age_way_1[index] + 1;
                 way_age_way_2[index] <= hit_way==2 ? 0 : way_age_way_2[index] + 1;
@@ -369,17 +408,17 @@ module d_cache (
         end
     end
 
-    //¸ù¾İµØÖ·µÍÁ½Î»ºÍsize£¬Éú³ÉĞ´ÑÚÂë£¨Õë¶Ôsb£¬shµÈ²»ÊÇĞ´ÍêÕûÒ»¸ö×ÖµÄÖ¸Áî£©£¬4Î»¶ÔÓ¦1¸ö×Ö£¨4×Ö½Ú£©ÖĞÃ¿¸ö×ÖµÄĞ´Ê¹ÄÜ
-    assign write_mask = cpu_data_size==2'b00 ?
-                            (cpu_data_addr[1] ? (cpu_data_addr[0] ? 4'b1000 : 4'b0100):  // 1¸ö×Ö½Ú
-                                                (cpu_data_addr[0] ? 4'b0010 : 4'b0001)) :
-                            (cpu_data_size==2'b01 ? (cpu_data_addr[1] ? 4'b1100 : 4'b0011) : 4'b1111);  //2¸ö×Ö½Ú   »ò   È«×Ö
-                            //cpu_data_size!=2'b00Óë2'b01Ê±£¬write_maskÎª4'b1111
+    //æ ¹æ®åœ°å€ä½ä¸¤ä½å’Œsizeï¼Œç”Ÿæˆå†™æ©ç ï¼ˆé’ˆå¯¹sbï¼Œshç­‰ä¸æ˜¯å†™å®Œæ•´ä¸€ä¸ªå­—çš„æŒ‡ä»¤ï¼‰ï¼Œ4ä½å¯¹åº”1ä¸ªå­—ï¼ˆ4å­—èŠ‚ï¼‰ä¸­æ¯ä¸ªå­—çš„å†™ä½¿èƒ½
+    assign write_mask = cpu_inst_size==2'b00 ?
+                            (cpu_inst_addr[1] ? (cpu_inst_addr[0] ? 4'b1000 : 4'b0100):  // 1ä¸ªå­—èŠ‚
+                                                (cpu_inst_addr[0] ? 4'b0010 : 4'b0001)) :
+                            (cpu_inst_size==2'b01 ? (cpu_inst_addr[1] ? 4'b1100 : 4'b0011) : 4'b1111);  //2ä¸ªå­—èŠ‚   æˆ–   å…¨å­—
+                            //cpu_inst_size!=2'b00ä¸2'b01æ—¶ï¼Œwrite_maskä¸º4'b1111
 
-    //ÑÚÂëµÄÊ¹ÓÃ£ºÎ»Îª1µÄ´ú±íĞèÒª¸üĞÂµÄ¡£
-    //Î»ÍØÕ¹£º{8{1'b1}} -> 8'b11111111
+    //æ©ç çš„ä½¿ç”¨ï¼šä½ä¸º1çš„ä»£è¡¨éœ€è¦æ›´æ–°çš„ã€‚
+    //ä½æ‹“å±•ï¼š{8{1'b1}} -> 8'b11111111
     //new_data = old_data & ~mask | write_data & mask
     assign write_cache_data = c_block & ~{{8{write_mask[3]}}, {8{write_mask[2]}}, {8{write_mask[1]}}, {8{write_mask[0]}}} | 
-                              cpu_data_wdata & {{8{write_mask[3]}}, {8{write_mask[2]}}, {8{write_mask[1]}}, {8{write_mask[0]}}};
+                              cpu_inst_wdata & {{8{write_mask[3]}}, {8{write_mask[2]}}, {8{write_mask[1]}}, {8{write_mask[0]}}};
 
 endmodule

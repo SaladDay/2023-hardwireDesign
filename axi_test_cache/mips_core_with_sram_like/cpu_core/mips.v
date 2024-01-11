@@ -9,9 +9,7 @@ module mips(
 	input wire[31:0] instrF,
 	output wire instr_enF, 
 	input wire instrStall,
-	output wire stallF,
-	output wire stallM,
-	output wire pcnext,
+
 
 	//read data
 	input wire dataStall,
@@ -21,8 +19,7 @@ module mips(
 	output wire[31:0] mem_write_dataM,
 	output wire mem_enM, //存储器使能
 	output wire [3:0] mem_wenM,
-	output wire [31:0] mem_addrE,
-	output wire memreadE,memwriteE,
+
 	output wire longest_stall,
 	//for debug
     output [31:0] debug_wb_pc     ,
@@ -49,7 +46,6 @@ module mips(
 		hilo_writeD,jbralD,jrD,
 		cp0_writeD,is_invalidD,
 		regdstD,hilotoregD,cp0toregD,memreadD,mfhi_loD,
-		memreadE,memwriteE,
 		
 		instrStall,
 		dataStall,
@@ -61,11 +57,6 @@ module mips(
 		mem_enM,
 		mem_wenM,
 		longest_stall,
-		stallF,
-		stallM,
-		pcnext,
-		mem_addrE,
-
 		debug_wb_pc,
 		debug_wb_rf_wen,
 		debug_wb_rf_wnum,

@@ -5,7 +5,7 @@ module hilo_reg(
 	output reg[63:0] hilo_out //读出值
     );
 
-	always @(negedge clk) begin
+	always @(posedge clk) begin
         if(rst)begin
             hilo_out <= 0;
         end
